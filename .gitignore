@@ -3,5 +3,11 @@ dist/
 .DS_Store
 *.log
 
-# Runtime data store (regenerated on first run)
-server/src/data/db.json
+# Environment secrets
+.env
+
+# SQLite database + WAL files (created at runtime)
+server/data/
+*.db
+*.db-shm
+*.db-wal
