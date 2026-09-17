@@ -10,6 +10,26 @@ services:
       SNAPSHOT_MS: ${SNAPSHOT_MS:-60000}
       STARTING_CASH: ${STARTING_CASH:-100000}
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # Autonomous trading agents (see .env.example). Defaults keep the system
+      # in safe paper mode with the engine off.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      TRADING_MODE: ${TRADING_MODE:-paper}
+      LIVE_CONFIRM: ${LIVE_CONFIRM:-}
+      BINANCE_BASE_URL: ${BINANCE_BASE_URL:-https://testnet.binance.vision}
+      BINANCE_DATA_URL: ${BINANCE_DATA_URL:-https://api.binance.com}
+      BINANCE_API_KEY: ${BINANCE_API_KEY:-}
+      BINANCE_API_SECRET: ${BINANCE_API_SECRET:-}
+      QUOTE_ASSET: ${QUOTE_ASSET:-USDT}
+      AGENT_ALLOCATION: ${AGENT_ALLOCATION:-50}
+      AGENT_TICK_MS: ${AGENT_TICK_MS:-15000}
+      AGENT_CANDLE_INTERVAL: ${AGENT_CANDLE_INTERVAL:-1m}
+      AGENT_FEE_RATE: ${AGENT_FEE_RATE:-0.001}
+      ENGINE_AUTOSTART: ${ENGINE_AUTOSTART:-false}
+      RISK_MAX_DRAWDOWN_PCT: ${RISK_MAX_DRAWDOWN_PCT:-20}
+      RISK_DAILY_LOSS_LIMIT_PCT: ${RISK_DAILY_LOSS_LIMIT_PCT:-10}
+      RISK_MAX_TOTAL_EXPOSURE: ${RISK_MAX_TOTAL_EXPOSURE:-400}
+      RISK_MAX_POSITION_FRACTION: ${RISK_MAX_POSITION_FRACTION:-1}
+      RISK_MIN_ORDER_NOTIONAL: ${RISK_MIN_ORDER_NOTIONAL:-1}
     volumes:
       - stock-data:/app/data
     restart: unless-stopped

@@ -76,4 +76,71 @@ export const SCHEMA_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_snapshots_user_time
     ON portfolio_snapshots(user_id, timestamp);
+
+  -- Autonomous trading agents. Each agent trades a single symbol with its own
+  -- capital allocation, strategy, and isolated position.
+  CREATE TABLE IF NOT EXISTS agents (
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    strategy       TEXT NOT NULL,
+    symbol         TEXT NOT NULL,
+    allocation     REAL NOT NULL,
+    cash           REAL NOT NULL,
+    position_qty   REAL NOT NULL DEFAULT 0,
+    position_avg   REAL NOT NULL DEFAULT 0,
+    enabled        INTEGER NOT NULL DEFAULT 0,
+    status         TEXT NOT NULL DEFAULT 'IDLE',
+    mark_price     REAL NOT NULL DEFAULT 0,
+    equity         REAL NOT NULL DEFAULT 0,
+    realized_pnl   REAL NOT NULL DEFAULT 0,
+    peak_equity    REAL NOT NULL,
+    day_start_equity REAL NOT NULL,
+    day_start_ts   INTEGER NOT NULL,
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS agent_trades (
+    id            TEXT PRIMARY KEY,
+    agent_id      TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    side          TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    qty           REAL NOT NULL,
+    price         REAL NOT NULL,
+    fee           REAL NOT NULL,
+    notional      REAL NOT NULL,
+    realized_pnl  REAL NOT NULL DEFAULT 0,
+    reason        TEXT,
+    mode          TEXT NOT NULL,
+    ext_order_id  TEXT,
+    ts            INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_agent_trades_agent
+    ON agent_trades(agent_id, ts DESC);
+
+  CREATE TABLE IF NOT EXISTS agent_equity (
+    agent_id  TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    equity    REAL NOT NULL,
+    ts        INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_agent_equity_agent
+    ON agent_equity(agent_id, ts);
+
+  CREATE TABLE IF NOT EXISTS risk_events (
+    id        TEXT PRIMARY KEY,
+    agent_id  TEXT,
+    kind      TEXT NOT NULL,
+    message   TEXT NOT NULL,
+    ts        INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_risk_events_ts
+    ON risk_events(ts DESC);
+
+  -- Single-row-per-key store for engine/kill-switch flags.
+  CREATE TABLE IF NOT EXISTS system_flags (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL
+  );
 `;

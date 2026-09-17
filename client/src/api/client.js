@@ -79,8 +79,39 @@ export const api = {
   getOrders: () => request('/orders'),
   placeOrder: (order) =>
     request('/orders', { method: 'POST', body: JSON.stringify(order) }),
-  cancelOrder: (id) => request(`/orders/${id}`, { method: 'DELETE' })
+  cancelOrder: (id) => request(`/orders/${id}`, { method: 'DELETE' }),
+
+  // Autonomous trading agents (admin-only).
+  getAgents: () => request('/agents'),
+  getAgent: (id) => request(`/agents/${id}`),
+  getAgentRisk: () => request('/agents/risk'),
+  enableAgent: (id) => request(`/agents/${id}/enable`, { method: 'POST' }),
+  disableAgent: (id) => request(`/agents/${id}/disable`, { method: 'POST' }),
+  startEngine: () => request('/agents/engine/start', { method: 'POST' }),
+  stopEngine: () => request('/agents/engine/stop', { method: 'POST' }),
+  killAgents: () => request('/agents/kill', { method: 'POST' }),
+  releaseKill: () => request('/agents/kill/release', { method: 'POST' }),
+  resetAgents: () => request('/agents/reset', { method: 'POST' })
 };
+
+// Subscribe to the admin agent stream (SSE). EventSource can't set headers, so
+// the JWT is passed as a query param. Returns an unsubscribe function.
+export function subscribeAgents({ onSnapshot, onAgent, onFleet }) {
+  const token = tokenStore.get();
+  if (!token) return () => {};
+  const source = new EventSource(`${BASE}/agents/stream?token=${encodeURIComponent(token)}`);
+  const parse = (fn) => (e) => {
+    try {
+      fn(JSON.parse(e.data));
+    } catch {
+      /* ignore malformed frames */
+    }
+  };
+  if (onSnapshot) source.addEventListener('snapshot', parse(onSnapshot));
+  if (onAgent) source.addEventListener('agent', parse(onAgent));
+  if (onFleet) source.addEventListener('fleet', parse(onFleet));
+  return () => source.close();
+}
 
 // Subscribe to the live quote stream (Server-Sent Events). Returns an
 // unsubscribe function. Falls back silently if the connection drops; the

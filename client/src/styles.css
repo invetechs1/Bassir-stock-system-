@@ -463,3 +463,135 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Trading agents panel ------------------------------------------------ */
+.agents-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.agents-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn.danger {
+  background: var(--neg);
+}
+.mode-badge {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.mode-badge.paper {
+  background: rgba(47, 129, 247, 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.mode-badge.live {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+}
+.agents-summary {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+.agent-stat > div:last-child {
+  font-size: 18px;
+  font-weight: 700;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.agents-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.agents-table th,
+.agents-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+.agents-table th.num,
+.agents-table td.num {
+  text-align: right;
+}
+.agent-name {
+  font-weight: 600;
+}
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.status-pill.ok {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--pos);
+}
+.status-pill.bad {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--neg);
+}
+.status-pill.idle {
+  background: rgba(139, 148, 158, 0.15);
+  color: var(--muted);
+}
+/* toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  transition: 0.2s;
+}
+.switch .slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.switch input:checked + .slider {
+  background: var(--pos);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
+.switch input:disabled + .slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

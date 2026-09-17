@@ -11,6 +11,7 @@ import watchlistRouter from './routes/watchlist.js';
 import ordersRouter from './routes/orders.js';
 import streamRouter from './routes/stream.js';
 import leaderboardRouter from './routes/leaderboard.js';
+import agentsRouter from './routes/agents.js';
 
 // Build the Express app without starting a server, so tests can drive it
 // directly via supertest.
@@ -60,6 +61,7 @@ export function createApp() {
   app.use('/api/watchlist', watchlistRouter);
   app.use('/api/orders', ordersRouter);
   app.use('/api/leaderboard', leaderboardRouter);
+  app.use('/api/agents', agentsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

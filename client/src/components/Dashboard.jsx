@@ -9,6 +9,7 @@ import Transactions from './Transactions.jsx';
 import Orders from './Orders.jsx';
 import PerformanceChart from './PerformanceChart.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import Agents from './Agents.jsx';
 import TradeModal from './TradeModal.jsx';
 
 // Account changes arrive instantly over the WebSocket channel; this slow poll
@@ -118,6 +119,9 @@ export default function Dashboard() {
       {error && <div className="banner error">{error}</div>}
 
       <PortfolioSummary portfolio={portfolio} />
+
+      {/* Autonomous trading agents (renders only for admin accounts). */}
+      <Agents />
 
       <div className="grid">
         <section className="panel wide">

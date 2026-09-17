@@ -1,6 +1,7 @@
 import { db } from './index.js';
 import { migrate } from './migrate.js';
 import { logger } from '../logger.js';
+import { initAgents } from '../agents/agentService.js';
 
 const SEED_STOCKS = [
   { symbol: 'AAPL', name: 'Apple Inc.', price: 195.32 },
@@ -35,6 +36,9 @@ export function seed() {
   });
   tx(SEED_STOCKS);
   logger.info('Stocks seeded', { count: SEED_STOCKS.length });
+
+  // Create the trading-agent fleet (idempotent; agents start disabled).
+  initAgents();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

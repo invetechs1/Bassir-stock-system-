@@ -5,8 +5,11 @@ live (simulated) prices, build a portfolio with virtual cash, track
 gains/losses, and keep a watchlist — backed by an authenticated REST API and a
 real database.
 
-> **Note:** Prices come from a built-in random-walk simulator, so the system is
-> fully self-contained and needs no external market-data provider or API key.
+> **Two subsystems:** (1) the **stock paper-trading app**, whose prices come from
+> a built-in random-walk simulator (self-contained, no API key); and (2) an
+> **autonomous crypto-agent fleet** that trades on **Binance** using real market
+> data — in safe **paper mode by default**, with a gated path to live trading.
+> See [Autonomous trading agents](#autonomous-trading-agents-binance).
 
 ## Stack
 
@@ -34,7 +37,11 @@ server/                       Express API
     db/                       connection, schema, migrate, migrations, seed
     middleware/               auth, validation, error handling
     services/                 auth, portfolio, orders, analytics, watchlist, stocks, simulator, events, userEvents
-    routes/                   auth, stocks, stream, portfolio, orders, leaderboard, watchlist
+    exchange/                 Binance market data + paper/live execution
+    agents/                   strategies, indicators, engine, risk manager, backtest
+    middleware/               auth, admin, validation, error handling
+    routes/                   auth, stocks, stream, portfolio, orders, leaderboard, watchlist, agents
+  scripts/                    backtest CLI
   test/                       vitest + supertest suite
   Dockerfile
 client/                       React + Vite frontend
@@ -142,6 +149,81 @@ time-in-force (omit for good-till-cancel).
 | GET    | `/api/watchlist`              |  ✓   | Watched stocks with quotes       |
 | POST   | `/api/watchlist`              |  ✓   | Add `{ symbol }`                 |
 | DELETE | `/api/watchlist/:symbol`      |  ✓   | Remove a symbol                  |
+
+### Trading agents (admin only)
+
+| Method | Endpoint                          | Description                          |
+| ------ | --------------------------------- | ------------------------------------ |
+| GET    | `/api/agents`                     | Fleet overview + summary + risk limits |
+| GET    | `/api/agents/:id`                 | Agent detail, trades, equity curve   |
+| GET    | `/api/agents/risk`                | Risk limits + recent risk events     |
+| GET    | `/api/agents/stream?token=<jwt>`  | SSE stream of live agent state       |
+| POST   | `/api/agents/:id/enable`\|`disable` | Enable/disable one agent           |
+| POST   | `/api/agents/engine/start`\|`stop` | Start/stop the decision loop        |
+| POST   | `/api/agents/kill`                | **Global kill switch** — halt all    |
+| POST   | `/api/agents/kill/release`        | Release the kill switch              |
+| POST   | `/api/agents/reset`               | Reset paper balances (paper only)    |
+
+## Autonomous trading agents (Binance)
+
+A fleet of **seven agents**, each running a distinct strategy on a distinct
+pair with its own capital allocation (default **$50**), supervised by a
+**top-level risk manager**. Built against an exchange-adapter interface;
+**Binance** is implemented today.
+
+> ### ⚠️ Read this before risking real money
+> - **Architecture is not edge.** Seven agents and a risk manager are just
+>   plumbing. Whether they make money depends entirely on the strategies, and
+>   naive technical strategies commonly **lose** to fees and spreads. Nothing
+>   here guarantees revenue. **Validate before funding.**
+> - **Paper first, always.** The system defaults to `paper` mode: fills are
+>   simulated in-process against **real Binance prices** — no keys, no funds at
+>   risk. Prove a strategy with the backtester and paper trading before going
+>   near live money.
+> - **Live is deliberately hard to enable** (see below), and starts small.
+
+### Strategies
+
+`sma-crossover`, `ema-trend`, `momentum` (ROC), `rsi-reversion`, `macd`,
+`bollinger`, `breakout` (Donchian) — long-only spot. Each is a pure function of
+indicators + current position, so it is unit-tested and backtestable.
+
+### Risk manager
+
+Sits between every agent and the exchange; no order reaches the venue without
+passing it. Enforces, per agent: a **drawdown kill-switch** (default 20% off
+peak → auto-flatten + disable), a **daily loss limit** (10%), a **position-size
+cap** (≤ allocation, no leverage), and fleet-wide a **total-exposure cap** and a
+**global kill switch** (one button halts everything).
+
+### Run it in paper mode
+
+Agents are created **disabled** and the engine starts **off**. As the owner
+(first registered account, or set `ADMIN_EMAILS`), open the dashboard → the
+**Trading Agents** panel → **Start engine**, then toggle agents on. Requires
+outbound network access to Binance for market data.
+
+### Backtest a strategy first
+
+```bash
+cd server
+npm run backtest sma-crossover BTCUSDT 1h 1000
+# → return %, trades, win rate, max drawdown
+```
+
+### Going live (only after it's proven)
+
+1. Fund a Binance account and create API keys (spot trading enabled).
+2. In `.env`: keep `BINANCE_BASE_URL` on the testnet to rehearse the real order
+   path with fake money first, then switch to `https://api.binance.com`.
+3. Set `TRADING_MODE=live` **and** `LIVE_CONFIRM=I_UNDERSTAND_THE_RISKS` (the
+   server refuses to start in live mode without the exact phrase and API keys).
+4. Start with tiny allocations. Keys live only in your local `.env`/secrets and
+   are **never** committed.
+
+> Scaling to large capital is a much bigger undertaking (custody, liquidity vs.
+> position size, tax/regulatory, monitoring) — treat that as a separate project,
+> not a config flag.
 
 ## Configuration
 
