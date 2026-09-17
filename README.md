@@ -7,9 +7,10 @@ real database.
 
 > **Two subsystems:** (1) the **stock paper-trading app**, whose prices come from
 > a built-in random-walk simulator (self-contained, no API key); and (2) an
-> **autonomous crypto-agent fleet** that trades on **Binance** using real market
-> data — in safe **paper mode by default**, with a gated path to live trading.
-> See [Autonomous trading agents](#autonomous-trading-agents-binance).
+> **autonomous multi-venue agent fleet** that trades **crypto (Binance, 24/7)**
+> and **US stocks (Alpaca, market hours)** using real market data — in safe
+> **paper mode by default**, with a gated path to live trading. See
+> [Autonomous trading agents](#autonomous-trading-agents-multi-venue).
 
 ## Stack
 
@@ -164,12 +165,37 @@ time-in-force (omit for good-till-cancel).
 | POST   | `/api/agents/kill/release`        | Release the kill switch              |
 | POST   | `/api/agents/reset`               | Reset paper balances (paper only)    |
 
-## Autonomous trading agents (Binance)
+## Autonomous trading agents (multi-venue)
 
-A fleet of **seven agents**, each running a distinct strategy on a distinct
-pair with its own capital allocation (default **$50**), supervised by a
-**top-level risk manager**. Built against an exchange-adapter interface;
-**Binance** is implemented today.
+Fleets of agents — each running a distinct strategy on a distinct instrument
+with its own capital allocation (default **$50**) — supervised by a
+**top-level risk manager**. Built against a venue-adapter interface, with two
+markets implemented:
+
+| Venue | Market | Hours | Broker | Live path |
+| ----- | ------ | ----- | ------ | --------- |
+| `binance` | Crypto (BTC, ETH, …) | **24/7** | Binance | testnet → mainnet |
+| `alpaca` | **US stocks** (AAPL, MSFT, …) | US market hours | Alpaca | paper → live |
+| `tadawul` | Saudi stocks | Sun–Thu 10:00–15:00 AST | — | **not available** (see below) |
+
+Select fleets with `AGENT_FLEETS` (default `crypto,us_equity`). Each fleet has 7
+agents, one per strategy.
+
+> ### ⏰ On "24/7" and Saudi stocks — please read
+> - **Only crypto trades 24/7.** Stock exchanges are closed nights and
+>   weekends, so US-stock agents trade **during US market hours** and idle
+>   otherwise (the engine skips them when the market is closed). There is no
+>   such thing as 24/7 stock trading.
+> - **Saudi/Tadawul automation is not available.** No Saudi broker exposes a
+>   public retail trading API, and Tadawul market data isn't freely available
+>   programmatically, so an agent cannot place real Saudi-stock orders today.
+>   The `tadawul` venue is a documented stub (`server/src/exchange/tadawul.js`)
+>   describing exactly what a future integration would require — it is
+>   intentionally **not** wired up, so nothing pretends to trade it. Enabling it
+>   would require a licensed broker/vendor offering a Tadawul order-entry API.
+>   For a Saudi resident who wants automated **US** trading, **Interactive
+>   Brokers** (global, has an API) is the usual route; Alpaca paper works for
+>   everyone.
 
 > ### ⚠️ Read this before risking real money
 > - **Architecture is not edge.** Seven agents and a risk manager are just
@@ -200,8 +226,13 @@ cap** (≤ allocation, no leverage), and fleet-wide a **total-exposure cap** and
 
 Agents are created **disabled** and the engine starts **off**. As the owner
 (first registered account, or set `ADMIN_EMAILS`), open the dashboard → the
-**Trading Agents** panel → **Start engine**, then toggle agents on. Requires
-outbound network access to Binance for market data.
+**Trading Agents** panel → **Start trading**, then toggle agents on.
+
+- **Crypto** needs outbound access to Binance for market data (no keys for
+  paper).
+- **US stocks** need free **Alpaca** paper keys in `.env` (Alpaca data requires
+  auth even for paper) — until they're set, the US-equity fleet stays inactive
+  and the dashboard shows the venue as "keys not set".
 
 ### Backtest a strategy first
 

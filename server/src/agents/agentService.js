@@ -9,11 +9,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // --- prepared statements ------------------------------------------------
 const insertAgent = db.prepare(`
   INSERT OR IGNORE INTO agents
-    (id, name, strategy, symbol, allocation, cash, enabled, status,
+    (id, name, strategy, symbol, venue, allocation, cash, enabled, status,
      mark_price, equity, realized_pnl, peak_equity, day_start_equity, day_start_ts,
      created_at, updated_at)
   VALUES
-    (@id, @name, @strategy, @symbol, @allocation, @allocation, 0, 'IDLE',
+    (@id, @name, @strategy, @symbol, @venue, @allocation, @allocation, 0, 'IDLE',
      0, @allocation, 0, @allocation, @allocation, @now, @now, @now)
 `);
 const selectAgent = db.prepare('SELECT * FROM agents WHERE id = ?');
@@ -93,6 +93,7 @@ function toPublic(row) {
     name: row.name,
     strategy: row.strategy,
     symbol: row.symbol,
+    venue: row.venue,
     allocation: row.allocation,
     cash: round2(row.cash),
     position: {

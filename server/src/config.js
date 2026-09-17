@@ -52,7 +52,14 @@ const schema = z.object({
   BINANCE_DATA_URL: z.string().default('https://api.binance.com'),
   BINANCE_API_KEY: z.string().default(''),
   BINANCE_API_SECRET: z.string().default(''),
-  // Quote asset all agents trade against (e.g. BTC/USDT).
+  // Alpaca (US equities). Paper endpoint by default (real market, fake money).
+  ALPACA_BASE_URL: z.string().default('https://paper-api.alpaca.markets'),
+  ALPACA_DATA_URL: z.string().default('https://data.alpaca.markets'),
+  ALPACA_API_KEY: z.string().default(''),
+  ALPACA_API_SECRET: z.string().default(''),
+  // Which agent fleets to create: any of 'crypto', 'us_equity' (comma list).
+  AGENT_FLEETS: z.string().default('crypto,us_equity'),
+  // Quote asset crypto agents trade against (e.g. BTC/USDT).
   QUOTE_ASSET: z.string().default('USDT'),
   // Per-agent virtual (or real, in live mode) capital allocation, in quote asset.
   AGENT_ALLOCATION: z.coerce.number().positive().default(50),
@@ -105,8 +112,12 @@ if (env.TRADING_MODE === 'live' && !liveEnabled) {
   process.exit(1);
 }
 
-if (liveEnabled && (!env.BINANCE_API_KEY || !env.BINANCE_API_SECRET)) {
-  console.error('Live trading requires BINANCE_API_KEY and BINANCE_API_SECRET.');
+const hasBinanceKeys = Boolean(env.BINANCE_API_KEY && env.BINANCE_API_SECRET);
+const hasAlpacaKeys = Boolean(env.ALPACA_API_KEY && env.ALPACA_API_SECRET);
+if (liveEnabled && !hasBinanceKeys && !hasAlpacaKeys) {
+  console.error(
+    'Live trading requires API keys for at least one venue (BINANCE_* or ALPACA_*).'
+  );
   process.exit(1);
 }
 
@@ -122,5 +133,8 @@ export const config = {
   liveTrading: liveEnabled,
   adminEmails: env.ADMIN_EMAILS.split(',')
     .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+  fleets: env.AGENT_FLEETS.split(',')
+    .map((f) => f.trim().toLowerCase())
     .filter(Boolean)
 };

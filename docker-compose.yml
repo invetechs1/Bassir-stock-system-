@@ -19,6 +19,11 @@ services:
       BINANCE_DATA_URL: ${BINANCE_DATA_URL:-https://api.binance.com}
       BINANCE_API_KEY: ${BINANCE_API_KEY:-}
       BINANCE_API_SECRET: ${BINANCE_API_SECRET:-}
+      ALPACA_API_KEY: ${ALPACA_API_KEY:-}
+      ALPACA_API_SECRET: ${ALPACA_API_SECRET:-}
+      ALPACA_BASE_URL: ${ALPACA_BASE_URL:-https://paper-api.alpaca.markets}
+      ALPACA_DATA_URL: ${ALPACA_DATA_URL:-https://data.alpaca.markets}
+      AGENT_FLEETS: ${AGENT_FLEETS:-crypto,us_equity}
       QUOTE_ASSET: ${QUOTE_ASSET:-USDT}
       AGENT_ALLOCATION: ${AGENT_ALLOCATION:-50}
       AGENT_TICK_MS: ${AGENT_TICK_MS:-15000}

@@ -8,6 +8,7 @@ import { notFound, unauthorized, ApiError } from '../utils/errors.js';
 import * as agents from '../agents/agentService.js';
 import * as risk from '../agents/riskManager.js';
 import { engine } from '../agents/engine.js';
+import { venueStatuses } from '../exchange/venues.js';
 import { agentEvents, AGENT_UPDATE, FLEET_UPDATE } from '../agents/agentEvents.js';
 
 const router = Router();
@@ -74,7 +75,8 @@ router.get(
     res.json({
       agents: agents.listAgents(),
       summary: agents.fleetSummary(),
-      risk: riskLimits()
+      risk: riskLimits(),
+      venues: await venueStatuses()
     });
   })
 );

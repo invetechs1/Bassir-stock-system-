@@ -10,6 +10,14 @@ function columnNames(db, table) {
 // Fresh databases already match the latest schema (applied via SCHEMA_SQL), so
 // each guard below is a no-op for them.
 export function applyMigrations(db) {
+  // v3: multi-venue agents. Add the `venue` column to agent tables created
+  // before venues existed (defaults to 'binance', the original crypto venue).
+  const agentCols = columnNames(db, 'agents');
+  if (agentCols.length && !agentCols.includes('venue')) {
+    db.exec("ALTER TABLE agents ADD COLUMN venue TEXT NOT NULL DEFAULT 'binance'");
+    logger.info('Migrated agents table to add venue column');
+  }
+
   const orderCols = columnNames(db, 'orders');
 
   // v2: stop orders + time-in-force. Adding the `type`/`expires_at` columns and

@@ -12,12 +12,16 @@ beforeAll(async () => {
 });
 
 describe('agents API', () => {
-  it('lists the fleet for an admin', async () => {
+  it('lists the fleet for an admin across venues', async () => {
     const res = await request(app).get('/api/agents').set('Authorization', auth(adminToken));
     expect(res.status).toBe(200);
-    expect(res.body.agents).toHaveLength(7);
+    expect(res.body.agents).toHaveLength(14); // 7 crypto + 7 US equity
     expect(res.body.summary.mode).toBe('paper');
     expect(res.body.risk.maxDrawdownPct).toBeGreaterThan(0);
+    // Venue statuses present; crypto is always open, Alpaca closed w/o keys.
+    expect(res.body.venues.binance.open).toBe(true);
+    expect(res.body.agents.some((a) => a.venue === 'binance')).toBe(true);
+    expect(res.body.agents.some((a) => a.venue === 'alpaca')).toBe(true);
   });
 
   it('forbids non-admin users', async () => {

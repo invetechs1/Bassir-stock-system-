@@ -1,19 +1,19 @@
 import { config } from '../config.js';
 import { logger } from '../logger.js';
-import { marketData as defaultMarketData } from '../exchange/marketData.js';
-import { getExecutor } from '../exchange/execution.js';
+import { getVenue } from '../exchange/venues.js';
 import { getStrategy } from './strategies.js';
 import * as agents from './agentService.js';
 import * as risk from './riskManager.js';
 import { agentEvents, AGENT_UPDATE, FLEET_UPDATE } from './agentEvents.js';
 
-// The decision engine. Each tick, for every enabled agent it: fetches candles,
-// marks the agent to market, applies protective stops, then (if clear) runs the
-// strategy, passes any signal through the risk manager, and executes the fill.
-// All exchange access is injected so tests can drive it with fakes offline.
+// The decision engine. Each tick, for every enabled agent it resolves the
+// agent's venue (Binance/crypto or Alpaca/US-equities), skips it if that market
+// is closed, then: fetches candles, marks to market, applies protective stops,
+// and — if clear — runs the strategy, passes any signal through the risk
+// manager, and executes the fill. Venue resolution is injected so tests run
+// entirely offline.
 export function createEngine({
-  marketData = defaultMarketData,
-  executor = getExecutor(),
+  resolveVenue = (agent) => getVenue(agent.venue),
   interval = config.AGENT_CANDLE_INTERVAL,
   candleLimit = 120
 } = {}) {
@@ -21,12 +21,13 @@ export function createEngine({
     return agents.listAgents().reduce((s, a) => s + a.position.value, 0);
   }
 
-  async function execFill(row, side, qty, price, reason) {
-    const fill = await executor.execute({ symbol: row.symbol, side, qty, price });
+  async function execFill(row, venue, side, qty, price, reason) {
+    const fill = await venue.executor.execute({ symbol: row.symbol, side, qty, price });
     const fresh = agents.getAgentRow(row.id);
     agents.applyFill(fresh, fill, reason);
     logger.info('Agent fill', {
       agent: row.id,
+      venue: venue.key,
       side,
       qty: fill.qty,
       price: fill.price,
@@ -37,9 +38,14 @@ export function createEngine({
 
   async function stepAgent(row) {
     const strat = getStrategy(row.strategy);
-    if (!strat) return;
+    const venue = resolveVenue(row);
+    if (!strat || !venue) return;
 
-    const candles = await marketData.getCandles(row.symbol, interval, candleLimit);
+    // Stock venues are closed nights/weekends; skip rather than trade on a
+    // stale price. Crypto venues report open 24/7.
+    if (!venue.configured || !(await venue.isOpen())) return;
+
+    const candles = await venue.marketData.getCandles(row.symbol, interval, candleLimit);
     if (!candles.length) return;
     const closes = candles.map((c) => c.close);
     const price = closes[closes.length - 1];
@@ -49,9 +55,7 @@ export function createEngine({
     const trip = risk.monitor(row, marks);
     if (trip) {
       if (trip.liquidate && row.position_qty > 0) {
-        await execFill(row, 'SELL', row.position_qty, price, `risk: ${trip.kind}`);
-        // applyFill flips status back to ACTIVE; re-assert the stop status so
-        // the disabled agent reflects why it was halted.
+        await execFill(row, venue, 'SELL', row.position_qty, price, `risk: ${trip.kind}`);
         agents.setStatus(row.id, trip.kind);
       }
       agentEvents.emit(AGENT_UPDATE, agents.getAgent(row.id));
@@ -70,7 +74,7 @@ export function createEngine({
       if (decision.action !== 'HOLD') {
         const verdict = risk.assess(row, decision, price, { totalDeployed: totalDeployed() });
         if (verdict.approved && verdict.qty > 0) {
-          await execFill(row, verdict.side, verdict.qty, price, verdict.reason);
+          await execFill(row, venue, verdict.side, verdict.qty, price, verdict.reason);
         }
       }
     }
@@ -94,8 +98,6 @@ export function createEngine({
   function start(tickMs = config.AGENT_TICK_MS) {
     if (timer) return;
     agents.setEngineRunning(true);
-    // Fire immediately, then on the interval. Each run is awaited-safe because
-    // tickOnce swallows per-agent errors.
     const run = () => tickOnce().catch((err) => logger.error('Tick failed', { error: err.message }));
     timer = setInterval(run, tickMs);
     if (timer.unref) timer.unref();

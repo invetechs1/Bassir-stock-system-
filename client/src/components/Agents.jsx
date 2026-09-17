@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, subscribeAgents, formatMoney } from '../api/client.js';
+import PerformanceChart from './PerformanceChart.jsx';
 
 // Admin-only control panel for the autonomous trading agents. Renders nothing
 // for non-admin accounts (the API returns 403). Live state arrives over SSE.
@@ -7,9 +8,11 @@ export default function Agents() {
   const [agents, setAgents] = useState([]);
   const [summary, setSummary] = useState(null);
   const [risk, setRisk] = useState(null);
+  const [venues, setVenues] = useState({});
   const [visible, setVisible] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [detail, setDetail] = useState(null); // { agent, trades, equityCurve }
 
   const load = useCallback(async () => {
     try {
@@ -17,9 +20,9 @@ export default function Agents() {
       setAgents(data.agents);
       setSummary(data.summary);
       setRisk(data.risk);
+      setVenues(data.venues || {});
       setError('');
     } catch (e) {
-      // 403 → not an admin; hide the panel entirely.
       if (/admin/i.test(e.message) || /403/.test(e.message)) setVisible(false);
       else setError(e.message);
     }
@@ -29,7 +32,6 @@ export default function Agents() {
     load();
   }, [load]);
 
-  // Live updates: patch individual agents and the fleet summary as they change.
   useEffect(() => {
     if (!visible) return undefined;
     return subscribeAgents({
@@ -37,8 +39,7 @@ export default function Agents() {
         setAgents(s.agents);
         setSummary(s.summary);
       },
-      onAgent: (a) =>
-        setAgents((prev) => prev.map((x) => (x.id === a.id ? a : x))),
+      onAgent: (a) => setAgents((prev) => prev.map((x) => (x.id === a.id ? a : x))),
       onFleet: (f) => setSummary(f)
     });
   }, [visible]);
@@ -55,6 +56,16 @@ export default function Agents() {
     }
   };
 
+  const openDetail = async (id) => {
+    if (detail?.agent?.id === id) return setDetail(null); // toggle closed
+    try {
+      setDetail(await api.getAgent(id));
+    } catch (e) {
+      setError(e.message);
+    }
+    return undefined;
+  };
+
   if (!visible) return null;
 
   const live = summary?.mode === 'live';
@@ -64,9 +75,7 @@ export default function Agents() {
       <div className="agents-head">
         <h2>
           Trading Agents
-          <span className={`mode-badge ${live ? 'live' : 'paper'}`}>
-            {live ? 'LIVE' : 'PAPER'}
-          </span>
+          <span className={`mode-badge ${live ? 'live' : 'paper'}`}>{live ? 'LIVE' : 'PAPER'}</span>
         </h2>
         {summary && (
           <div className="agents-controls">
@@ -85,7 +94,7 @@ export default function Agents() {
               </button>
             ) : (
               <button className="btn" disabled={busy} onClick={() => act(api.startEngine)}>
-                ▶ Start engine
+                ▶ Start trading
               </button>
             )}
             {!live && (
@@ -98,6 +107,24 @@ export default function Agents() {
       </div>
 
       {error && <div className="banner error">{error}</div>}
+
+      {/* Venue / market-hours status */}
+      <div className="venue-status">
+        {Object.entries(venues).map(([key, v]) => (
+          <span key={key} className="venue-chip" title={v.label}>
+            {v.label}:{' '}
+            {v.assetClass === 'crypto' ? (
+              <span className="pos">24/7 open</span>
+            ) : !v.configured ? (
+              <span className="muted">keys not set</span>
+            ) : v.open ? (
+              <span className="pos">market open</span>
+            ) : (
+              <span className="muted">market closed</span>
+            )}
+          </span>
+        ))}
+      </div>
 
       {summary && (
         <div className="agents-summary">
@@ -115,10 +142,10 @@ export default function Agents() {
 
       <p className="muted small">
         {live
-          ? 'LIVE mode — real orders are being sent to Binance.'
-          : 'Paper mode — fills are simulated against real Binance prices. No real funds are at risk.'}
+          ? 'LIVE mode — real orders are being sent to the exchanges.'
+          : 'Paper mode — fills are simulated against real market prices. No real funds are at risk.'}
         {risk &&
-          ` Risk limits: ${risk.maxDrawdownPct}% max drawdown, ${risk.dailyLossLimitPct}% daily loss, ${formatMoney(risk.maxTotalExposure)} total exposure cap.`}
+          ` Risk: ${risk.maxDrawdownPct}% max drawdown, ${risk.dailyLossLimitPct}% daily loss, ${formatMoney(risk.maxTotalExposure)} exposure cap. Crypto trades 24/7; stocks trade during market hours only.`}
       </p>
 
       <div className="table-wrap">
@@ -126,7 +153,7 @@ export default function Agents() {
           <thead>
             <tr>
               <th>Agent</th>
-              <th>Symbol</th>
+              <th>Market</th>
               <th>Status</th>
               <th className="num">Position</th>
               <th className="num">Equity</th>
@@ -136,12 +163,18 @@ export default function Agents() {
           </thead>
           <tbody>
             {agents.map((a) => (
-              <tr key={a.id}>
+              <tr key={a.id} className={detail?.agent?.id === a.id ? 'row-open' : ''}>
                 <td>
-                  <div className="agent-name">{a.name}</div>
-                  <div className="muted small">{a.strategy}</div>
+                  <button className="linklike" onClick={() => openDetail(a.id)}>
+                    {a.name}
+                  </button>
+                  <div className="muted small">
+                    {a.symbol} · {a.strategy}
+                  </div>
                 </td>
-                <td>{a.symbol}</td>
+                <td>
+                  <span className="muted small">{venues[a.venue]?.assetClass || a.venue}</span>
+                </td>
                 <td>
                   <span className={`status-pill ${statusClass(a.status)}`}>{a.status}</span>
                 </td>
@@ -178,6 +211,51 @@ export default function Agents() {
           </tbody>
         </table>
       </div>
+
+      {detail && (
+        <div className="agent-detail">
+          <div className="agents-head">
+            <h3>
+              {detail.agent.name} <span className="muted small">equity curve</span>
+            </h3>
+            <button className="btn ghost small" onClick={() => setDetail(null)}>
+              Close
+            </button>
+          </div>
+          <PerformanceChart
+            points={(detail.equityCurve || []).map((p) => ({ value: p.equity, timestamp: p.ts }))}
+          />
+          <h4 className="muted small">Recent trades</h4>
+          {detail.trades?.length ? (
+            <table className="agents-table">
+              <thead>
+                <tr>
+                  <th>Side</th>
+                  <th className="num">Qty</th>
+                  <th className="num">Price</th>
+                  <th className="num">P/L</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.trades.slice(0, 12).map((t) => (
+                  <tr key={t.id}>
+                    <td className={t.side === 'BUY' ? 'pos' : 'neg'}>{t.side}</td>
+                    <td className="num">{Number(t.qty).toFixed(4)}</td>
+                    <td className="num">{t.price}</td>
+                    <td className={`num ${t.realized_pnl >= 0 ? 'pos' : 'neg'}`}>
+                      {t.side === 'SELL' ? formatMoney(t.realized_pnl) : '—'}
+                    </td>
+                    <td className="muted small">{t.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="muted small">No trades yet.</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

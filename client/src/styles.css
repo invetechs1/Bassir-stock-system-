@@ -595,3 +595,42 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --- Multi-venue agent additions ---------------------------------------- */
+.venue-status {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.venue-chip {
+  color: var(--muted);
+}
+.linklike {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+.linklike:hover {
+  text-decoration: underline;
+}
+.agents-table tr.row-open {
+  background: rgba(47, 129, 247, 0.06);
+}
+.agent-detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.agent-detail h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.agent-detail h4 {
+  margin: 14px 0 6px;
+}

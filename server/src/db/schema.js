@@ -84,6 +84,7 @@ export const SCHEMA_SQL = `
     name           TEXT NOT NULL,
     strategy       TEXT NOT NULL,
     symbol         TEXT NOT NULL,
+    venue          TEXT NOT NULL DEFAULT 'binance',
     allocation     REAL NOT NULL,
     cash           REAL NOT NULL,
     position_qty   REAL NOT NULL DEFAULT 0,
