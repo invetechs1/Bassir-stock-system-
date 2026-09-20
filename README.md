@@ -234,6 +234,9 @@ Agents are created **disabled** and the engine starts **off**. As the owner
   auth even for paper) — until they're set, the US-equity fleet stays inactive
   and the dashboard shows the venue as "keys not set".
 
+See **[GETTING_API_KEYS.md](./GETTING_API_KEYS.md)** for step-by-step key setup,
+and **[DEPLOYMENT.md](./DEPLOYMENT.md)** to deploy on a server.
+
 ### Backtest a strategy first
 
 ```bash
